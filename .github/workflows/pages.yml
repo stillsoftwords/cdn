@@ -1,0 +1,52 @@
+name: Deploy CDN to Pages
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'img/**'          # коммиты картинок бота НЕ должны триггерить Pages-деплой
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Stage landing page only (exclude img/)
+        run: |
+          mkdir -p site
+          cp index.html site/
+          cp avatar.png site/
+          cp CNAME site/
+          cp .nojekyll site/ 2>/dev/null || touch site/.nojekyll
+          cp privacy.html site/ 2>/dev/null || true
+          cp terms.html site/ 2>/dev/null || true
+          cp README.md site/ 2>/dev/null || true
+          cp -R wallpapers site/ 2>/dev/null || true
+          cp -R stillsoftwords site/ 2>/dev/null || true
+          cp -R tiktok site/ 2>/dev/null || true   # видео для TikTok PULL (верифиц. домен)
+          echo "Staged artifact contents:"; find site -type f | sort
+          echo "Artifact size:"; du -sh site
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './site'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        timeout-minutes: 10
